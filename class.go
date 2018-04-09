@@ -125,3 +125,54 @@ func (class *GenericClass) Attrs() *ClassAttrs {
 func (class *GenericClass) Type() string {
 	return class.ClassType
 }
+
+// Hfsc is a queueing discipline
+type ServiceCurve struct {
+	m1 uint32
+	d  uint32
+	m2 uint32
+}
+
+func (c *ServiceCurve) Attrs() (uint32, uint32, uint32) {
+	return c.m1, c.d, c.m2
+}
+
+type HfscClass struct {
+	ClassAttrs
+	Rsc ServiceCurve
+	Fsc ServiceCurve
+	Usc ServiceCurve
+}
+
+func (hfsc *HfscClass) SetSC(m1 uint32, d uint32, m2 uint32) {
+	hfsc.Rsc = ServiceCurve{m1: m1, d: d, m2: m2}
+	hfsc.Fsc = ServiceCurve{m1: m1, d: d, m2: m2}
+}
+
+func (hfsc *HfscClass) SetUL(m1 uint32, d uint32, m2 uint32) {
+	hfsc.Usc = ServiceCurve{m1: m1, d: d, m2: m2}
+}
+
+func NewHfsc(attrs ClassAttrs) *HfscClass {
+	return &HfscClass{
+		ClassAttrs: attrs,
+		Rsc:        ServiceCurve{},
+		Fsc:        ServiceCurve{},
+		Usc:        ServiceCurve{},
+	}
+}
+
+func (hfsc *HfscClass) String() string {
+	return fmt.Sprintf(
+		"{{RSC: {m1=%d d=%d m2=%d}} {FSC: {m1=%d d=%d m2=%d}} {USC: {m1=%d d=%d m2=%d}}}",
+		hfsc.Rsc.m1, hfsc.Rsc.d, hfsc.Rsc.m2, hfsc.Fsc.m1, hfsc.Fsc.d, hfsc.Fsc.m2, hfsc.Usc.m1, hfsc.Usc.d, hfsc.Usc.m2,
+	)
+}
+
+func (hfsc *HfscClass) Attrs() *ClassAttrs {
+	return &hfsc.ClassAttrs
+}
+
+func (hfsc *HfscClass) Type() string {
+	return "hfsc"
+}
