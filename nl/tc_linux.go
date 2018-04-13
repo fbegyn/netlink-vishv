@@ -446,7 +446,7 @@ func (c *Curve) Set(m1 uint32, d uint32, m2 uint32) {
 	c.m2 = m2
 }
 
-func DesrializeHfscCurve(b []byte) *Curve {
+func DeserializeHfscCurve(b []byte) *Curve {
 	return &Curve{
 		m1: binary.LittleEndian.Uint32(b[0:4]),
 		d:  binary.LittleEndian.Uint32(b[4:8]),

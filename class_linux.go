@@ -312,7 +312,7 @@ func parseHfscClassData(class Class, data []syscall.NetlinkRouteAttr) (bool, err
 	hfsc := class.(*HfscClass)
 	detailed := false
 	for _, datum := range data {
-		m1, d, m2 := nl.DesrializeHfscCurve(datum.Value).Attrs()
+		m1, d, m2 := nl.DeserializeHfscCurve(datum.Value).Attrs()
 		switch datum.Attr.Type {
 		case nl.TCA_HFSC_RSC:
 			hfsc.Rsc = ServiceCurve{m1: m1, d: d, m2: m2}
