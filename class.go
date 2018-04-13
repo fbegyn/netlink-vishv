@@ -153,7 +153,7 @@ func (hfsc *HfscClass) SetUL(m1 uint32, d uint32, m2 uint32) {
 	hfsc.Usc = ServiceCurve{m1: m1, d: d, m2: m2}
 }
 
-func NewHfsc(attrs ClassAttrs) *HfscClass {
+func NewHfscClass(attrs ClassAttrs) *HfscClass {
 	return &HfscClass{
 		ClassAttrs: attrs,
 		Rsc:        ServiceCurve{},
