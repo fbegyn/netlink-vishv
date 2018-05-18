@@ -435,3 +435,147 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 		t.Fatal("Failed to remove qdisc")
 	}
 }
+
+func TestClassHfsc(t *testing.T) {
+	// New network namespace for tests
+	tearDown := setUpNetlinkTestWithKModule(t, "hfsc")
+	defer tearDown()
+
+	// Set up testing link and check if succeeded
+	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkAdd(&Ifb{LinkAttrs{Name: "bar"}}); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	// Fetch current classes and store the amount
+	classes, err := ClassList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatal("Couldn't fetch class list")
+	}
+	classesLength := len(classes)
+
+	// Create new HFSC class
+	classAttrs := ClassAttrs{
+		LinkIndex: link.Attrs().Index,
+		Parent:    MakeHandle(0xffff, 0),
+		Handle:    MakeHandle(0xffff, 2),
+	}
+	class := NewHfscClass(classAttrs)
+	class.SetSC(0, 1000, 0)
+	class.SetSC(1, 2000, 1)
+
+	// Add the new class
+	if err := ClassAdd(class); err != nil {
+		t.Fatal(err)
+	}
+
+	// Fetch the new list of classes
+	classes, err = ClassList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatal("Couldn't fetch class list")
+	}
+
+	// Added 1 class, so the amount should have increased by 1
+	if len(classes) != classesLength+1 {
+		t.Fatalf("Failed to add class - expected %d, found %d \n", classesLength+1, len(classes))
+	}
+
+	// Check if the added class is correct
+	hfsc, ok := classes[0].(*HfscClass)
+	if !ok {
+		t.Fatal("Class is wrong type")
+	}
+	if hfsc.Fsc != class.Fsc {
+		t.Fatal("FSC's don't match")
+	}
+	if hfsc.Rsc != class.Rsc {
+		t.Fatal("RSC's don't match")
+	}
+	if hfsc.Usc != class.Usc {
+		t.Fatal("USC's don't match")
+	}
+	if hfsc != class {
+		t.Fatal("Added class does not match created one")
+	}
+
+	// Change shouldn't work with different handle
+	oldHandle := class.Handle
+	class.Handle = MakeHandle(0xffff, 3)
+	if err = ClassChange(class); err == nil {
+		t.Fatal("Change shouldn't work with different handle")
+	}
+	class.Handle = oldHandle
+	// Change the class and see if it works
+	class.SetSC(0, 5000, 0)
+	if err = ClassChange(class); err != nil {
+		t.Fatal(err)
+	}
+
+	classes, err = ClassList(link, MakeHandle(0xffff, 0))
+	hfsc, ok = classes[0].(*HfscClass)
+	if !ok {
+		t.Fatal("Class is wrong type")
+	}
+	if hfsc != class {
+		t.Fatal("Added class does not match changed one")
+	}
+
+	// Replace the classes
+	// TODO: I'm not sure how to test this
+	class.Handle = MakeHandle(0xffff, 3)
+	if err = ClassReplace(class); err != nil {
+		t.Fatal(err)
+	}
+
+	classes, err = ClassList(link, MakeHandle(0xffff, 0))
+	classesLength = len(classes)
+	if err != nil {
+		t.Fatal("Couldn't fetch class list")
+	}
+	// Delete the class
+	if err := ClassDel(class); err != nil {
+		t.Fatal(err)
+	}
+
+	// Fetch the new list of classes
+	classes, err = ClassList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatal("Couldn't fetch class list")
+	}
+
+	// Removed 1 class, so the amount should have decreased by 1
+	if len(classes) != classesLength-1 {
+		t.Fatalf("Failed to delete class - expected %d, found %d \n", len(classes), classesLength-1)
+	}
+
+	class.Handle = oldHandle
+	classes, err = ClassList(link, MakeHandle(0xffff, 0))
+	classesLength = len(classes)
+	if err != nil {
+		t.Fatal("Couldn't fetch class list")
+	}
+	// Delete the class
+	if err := ClassDel(class); err != nil {
+		t.Fatal(err)
+	}
+
+	// Fetch the new list of classes
+	classes, err = ClassList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatal("Couldn't fetch class list")
+	}
+
+	// Removed 1 class, so the amount should have decreased by 1
+	if len(classes) != classesLength-1 {
+		t.Fatalf("Failed to delete class - expected %d, found %d \n", len(classes), classesLength-1)
+	}
+}

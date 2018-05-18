@@ -113,6 +113,52 @@ func (h *Handle) SetPromiscOn(link Link) error {
 	return err
 }
 
+// LinkSetAllmulticastOn enables the reception of all hardware multicast packets for the link device.
+// Equivalent to: `ip link set $link allmulticast on`
+func LinkSetAllmulticastOn(link Link) error {
+	return pkgHandle.LinkSetAllmulticastOn(link)
+}
+
+// LinkSetAllmulticastOn enables the reception of all hardware multicast packets for the link device.
+// Equivalent to: `ip link set $link allmulticast on`
+func (h *Handle) LinkSetAllmulticastOn(link Link) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(unix.RTM_NEWLINK, unix.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+	msg.Change = unix.IFF_ALLMULTI
+	msg.Flags = unix.IFF_ALLMULTI
+
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
+	return err
+}
+
+// LinkSetAllmulticastOff disables the reception of all hardware multicast packets for the link device.
+// Equivalent to: `ip link set $link allmulticast off`
+func LinkSetAllmulticastOff(link Link) error {
+	return pkgHandle.LinkSetAllmulticastOff(link)
+}
+
+// LinkSetAllmulticastOff disables the reception of all hardware multicast packets for the link device.
+// Equivalent to: `ip link set $link allmulticast off`
+func (h *Handle) LinkSetAllmulticastOff(link Link) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(unix.RTM_NEWLINK, unix.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+	msg.Change = unix.IFF_ALLMULTI
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
+	return err
+}
+
 func MacvlanMACAddrAdd(link Link, addr net.HardwareAddr) error {
 	return pkgHandle.MacvlanMACAddrAdd(link, addr)
 }
@@ -203,7 +249,6 @@ func (h *Handle) SetPromiscOff(link Link) error {
 
 	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
 	msg.Change = unix.IFF_PROMISC
-	msg.Flags = 0 & ^unix.IFF_PROMISC
 	msg.Index = int32(base.Index)
 	req.AddData(msg)
 
@@ -253,7 +298,6 @@ func (h *Handle) LinkSetDown(link Link) error {
 
 	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
 	msg.Change = unix.IFF_UP
-	msg.Flags = 0 & ^unix.IFF_UP
 	msg.Index = int32(base.Index)
 	req.AddData(msg)
 
@@ -1214,6 +1258,9 @@ func (h *Handle) LinkByName(name string) (Link, error) {
 	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
 	req.AddData(msg)
 
+	attr := nl.NewRtAttr(unix.IFLA_EXT_MASK, nl.Uint32Attr(nl.RTEXT_FILTER_VF))
+	req.AddData(attr)
+
 	nameData := nl.NewRtAttr(unix.IFLA_IFNAME, nl.ZeroTerminated(name))
 	req.AddData(nameData)
 
@@ -1246,6 +1293,9 @@ func (h *Handle) LinkByAlias(alias string) (Link, error) {
 	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
 	req.AddData(msg)
 
+	attr := nl.NewRtAttr(unix.IFLA_EXT_MASK, nl.Uint32Attr(nl.RTEXT_FILTER_VF))
+	req.AddData(attr)
+
 	nameData := nl.NewRtAttr(unix.IFLA_IFALIAS, nl.ZeroTerminated(alias))
 	req.AddData(nameData)
 
@@ -1272,6 +1322,8 @@ func (h *Handle) LinkByIndex(index int) (Link, error) {
 	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
 	msg.Index = int32(index)
 	req.AddData(msg)
+	attr := nl.NewRtAttr(unix.IFLA_EXT_MASK, nl.Uint32Attr(nl.RTEXT_FILTER_VF))
+	req.AddData(attr)
 
 	return execGetLink(req)
 }
@@ -1458,6 +1510,16 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 			base.OperState = LinkOperState(uint8(attr.Value[0]))
 		case unix.IFLA_LINK_NETNSID:
 			base.NetNsID = int(native.Uint32(attr.Value[0:4]))
+		case unix.IFLA_VFINFO_LIST:
+			data, err := nl.ParseRouteAttr(attr.Value)
+			if err != nil {
+				return nil, err
+			}
+			vfs, err := parseVfInfoList(data)
+			if err != nil {
+				return nil, err
+			}
+			base.Vfs = vfs
 		}
 	}
 
@@ -1491,6 +1553,8 @@ func (h *Handle) LinkList() ([]Link, error) {
 
 	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
 	req.AddData(msg)
+	attr := nl.NewRtAttr(unix.IFLA_EXT_MASK, nl.Uint32Attr(nl.RTEXT_FILTER_VF))
+	req.AddData(attr)
 
 	msgs, err := req.Execute(unix.NETLINK_ROUTE, unix.RTM_NEWLINK)
 	if err != nil {
@@ -1974,9 +2038,9 @@ func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
 		case nl.IFLA_GRE_IKEY:
 			gre.OKey = ntohl(datum.Value[0:4])
 		case nl.IFLA_GRE_LOCAL:
-			gre.Local = net.IP(datum.Value[0:16])
+			gre.Local = net.IP(datum.Value)
 		case nl.IFLA_GRE_REMOTE:
-			gre.Remote = net.IP(datum.Value[0:16])
+			gre.Remote = net.IP(datum.Value)
 		case nl.IFLA_GRE_ENCAP_SPORT:
 			gre.EncapSport = ntohs(datum.Value[0:2])
 		case nl.IFLA_GRE_ENCAP_DPORT:
@@ -1985,7 +2049,6 @@ func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
 			gre.IFlags = ntohs(datum.Value[0:2])
 		case nl.IFLA_GRE_OFLAGS:
 			gre.OFlags = ntohs(datum.Value[0:2])
-
 		case nl.IFLA_GRE_TTL:
 			gre.Ttl = uint8(datum.Value[0])
 		case nl.IFLA_GRE_TOS:
@@ -2051,19 +2114,18 @@ func parseGretunData(link Link, data []syscall.NetlinkRouteAttr) {
 	gre := link.(*Gretun)
 	for _, datum := range data {
 		switch datum.Attr.Type {
-		case nl.IFLA_GRE_OKEY:
-			gre.IKey = ntohl(datum.Value[0:4])
 		case nl.IFLA_GRE_IKEY:
+			gre.IKey = ntohl(datum.Value[0:4])
+		case nl.IFLA_GRE_OKEY:
 			gre.OKey = ntohl(datum.Value[0:4])
 		case nl.IFLA_GRE_LOCAL:
-			gre.Local = net.IP(datum.Value[0:16])
+			gre.Local = net.IP(datum.Value)
 		case nl.IFLA_GRE_REMOTE:
-			gre.Remote = net.IP(datum.Value[0:16])
+			gre.Remote = net.IP(datum.Value)
 		case nl.IFLA_GRE_IFLAGS:
 			gre.IFlags = ntohs(datum.Value[0:2])
 		case nl.IFLA_GRE_OFLAGS:
 			gre.OFlags = ntohs(datum.Value[0:2])
-
 		case nl.IFLA_GRE_TTL:
 			gre.Ttl = uint8(datum.Value[0])
 		case nl.IFLA_GRE_TOS:
@@ -2341,6 +2403,47 @@ func parseGTPData(link Link, data []syscall.NetlinkRouteAttr) {
 			gtp.Role = int(native.Uint32(datum.Value))
 		}
 	}
+}
+
+func parseVfInfoList(data []syscall.NetlinkRouteAttr) ([]VfInfo, error) {
+	var vfs []VfInfo
+
+	for i, element := range data {
+		if element.Attr.Type != nl.IFLA_VF_INFO {
+			return nil, fmt.Errorf("Incorrect element type in vf info list: %d", element.Attr.Type)
+		}
+		vfAttrs, err := nl.ParseRouteAttr(element.Value)
+		if err != nil {
+			return nil, err
+		}
+		vfs = append(vfs, parseVfInfo(vfAttrs, i))
+	}
+	return vfs, nil
+}
+
+func parseVfInfo(data []syscall.NetlinkRouteAttr, id int) VfInfo {
+	vf := VfInfo{ID: id}
+	for _, element := range data {
+		switch element.Attr.Type {
+		case nl.IFLA_VF_MAC:
+			mac := nl.DeserializeVfMac(element.Value[:])
+			vf.Mac = mac.Mac[:6]
+		case nl.IFLA_VF_VLAN:
+			vl := nl.DeserializeVfVlan(element.Value[:])
+			vf.Vlan = int(vl.Vlan)
+			vf.Qos = int(vl.Qos)
+		case nl.IFLA_VF_TX_RATE:
+			txr := nl.DeserializeVfTxRate(element.Value[:])
+			vf.TxRate = int(txr.Rate)
+		case nl.IFLA_VF_SPOOFCHK:
+			sp := nl.DeserializeVfSpoofchk(element.Value[:])
+			vf.Spoofchk = sp.Setting != 0
+		case nl.IFLA_VF_LINK_STATE:
+			ls := nl.DeserializeVfLinkState(element.Value[:])
+			vf.LinkState = ls.LinkState
+		}
+	}
+	return vf
 }
 
 // LinkSetBondSlave add slave to bond link via ioctl interface.
