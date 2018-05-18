@@ -246,6 +246,9 @@ func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 		if qdisc.Quantum > 0 {
 			nl.NewRtAttrChild(options, nl.TCA_FQ_CODEL_QUANTUM, nl.Uint32Attr((uint32(qdisc.Quantum))))
 		}
+		if qdisc.Target > 0 {
+			nl.NewRtAttrChild(options, nl.TCA_FQ_CODEL_TARGET, nl.Uint32Attr((uint32(qdisc.Target))))
+		}
 
 	case *Fq:
 		nl.NewRtAttrChild(options, nl.TCA_FQ_RATE_ENABLE, nl.Uint32Attr((uint32(qdisc.Pacing))))
