@@ -28,7 +28,7 @@ type tcStats struct {
 	Backlog    uint32
 }
 
-// NOTE: function is in here because it uses other linux functions
+// NewHtbClass NOTE: function is in here because it uses other linux functions
 func NewHtbClass(attrs ClassAttrs, cattrs HtbClassAttrs) *HtbClass {
 	mtu := 1600
 	rate := cattrs.Rate / 8
