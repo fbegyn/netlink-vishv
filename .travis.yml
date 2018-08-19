@@ -10,5 +10,9 @@ before_script:
   - sudo modprobe nf_conntrack_ipv4
   - sudo modprobe nf_conntrack_ipv6
   - sudo modprobe sch_hfsc
+  - cp -r $HOME/gopath/src/github.com/fbegyn/netlink $HOME/gopath/src/github.com/vishvananda/netlink
 install:
+  - go get golang.org/x/sys/unix
   - go get github.com/vishvananda/netns
+script:
+  - go test -test.exec sudo -test.parallel 4 -timeout 60s -test.v github.com/vishvananda/netlink/./
