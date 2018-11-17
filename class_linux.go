@@ -173,9 +173,9 @@ func classPayload(req *nl.NetlinkRequest, class Class) error {
 			return errors.New("HTB: failed to calculate ceil rate table")
 		}
 		opt.Ceil = tcceil
-		nl.NewRtAttrChild(options, nl.TCA_HTB_PARMS, opt.Serialize())
-		nl.NewRtAttrChild(options, nl.TCA_HTB_RTAB, SerializeRtab(rtab))
-		nl.NewRtAttrChild(options, nl.TCA_HTB_CTAB, SerializeRtab(ctab))
+		options.AddRtAttr(nl.TCA_HTB_PARMS, opt.Serialize())
+		options.AddRtAttr(nl.TCA_HTB_RTAB, SerializeRtab(rtab))
+		options.AddRtAttr(nl.TCA_HTB_CTAB, SerializeRtab(ctab))
 	case "hfsc":
 		hfsc := class.(*HfscClass)
 		opt := nl.HfscCopt{}
