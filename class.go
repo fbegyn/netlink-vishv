@@ -134,29 +134,29 @@ func (class *GenericClass) Type() string {
 
 // ServiceCurve is the way the HFSC curve are represented
 type ServiceCurve struct {
-	m1 uint32
-	d  uint32
-	m2 uint32
+  M1 uint32
+  D  uint32
+  M2 uint32
 }
 
 // Attrs return the parameters of the service curve
 func (c *ServiceCurve) Attrs() (uint32, uint32, uint32) {
-	return c.m1, c.d, c.m2
+	return c.M1, c.D, c.M2
 }
 
-// Burst returns the burst rate/m1 of the curve
+// Burst returns the burst rate/M1 of the curve
 func (c *ServiceCurve) Burst() uint32 {
-	return c.m1
+	return c.M1
 }
 
 // Delay return the delay of the curve
 func (c *ServiceCurve) Delay() uint32 {
-	return c.d
+	return c.D
 }
 
 // Rate returns the rate of the curve
 func (c *ServiceCurve) Rate() uint32 {
-	return c.m2
+	return c.M2
 }
 
 // HfscClass is a representation of the HFSC class
@@ -169,17 +169,17 @@ type HfscClass struct {
 
 // SetUsc sets the Usc curve
 func (hfsc *HfscClass) SetUsc(m1 uint32, d uint32, m2 uint32) {
-	hfsc.Usc = ServiceCurve{m1: m1, d: d, m2: m2}
+	hfsc.Usc = ServiceCurve{M1: m1, D: d, M2: m2}
 }
 
 // SetFsc sets the Fsc curve
 func (hfsc *HfscClass) SetFsc(m1 uint32, d uint32, m2 uint32) {
-	hfsc.Fsc = ServiceCurve{m1: m1, d: d, m2: m2}
+	hfsc.Fsc = ServiceCurve{M1: m1, D: d, M2: m2}
 }
 
 // SetRsc sets the Rsc curve
 func (hfsc *HfscClass) SetRsc(m1 uint32, d uint32, m2 uint32) {
-	hfsc.Rsc = ServiceCurve{m1: m1, d: d, m2: m2}
+	hfsc.Rsc = ServiceCurve{M1: m1, D: d, M2: m2}
 }
 
 // SetSC implements the SC from the tc CLI
@@ -210,8 +210,8 @@ func NewHfscClass(attrs ClassAttrs) *HfscClass {
 
 func (hfsc *HfscClass) String() string {
 	return fmt.Sprintf(
-		"{%s -- {RSC: {m1=%d d=%d m2=%d}} {FSC: {m1=%d d=%d m2=%d}} {USC: {m1=%d d=%d m2=%d}}}",
-		hfsc.Attrs(), hfsc.Rsc.m1*8, hfsc.Rsc.d, hfsc.Rsc.m2*8, hfsc.Fsc.m1*8, hfsc.Fsc.d, hfsc.Fsc.m2*8, hfsc.Usc.m1*8, hfsc.Usc.d, hfsc.Usc.m2*8,
+		"{%s -- {RSC: {M1=%d d=%d M2=%d}} {FSC: {M1=%d d=%d M2=%d}} {USC: {M1=%d d=%d M2=%d}}}",
+		hfsc.Attrs(), hfsc.Rsc.M1*8, hfsc.Rsc.D, hfsc.Rsc.M2*8, hfsc.Fsc.M1*8, hfsc.Fsc.D, hfsc.Fsc.M2*8, hfsc.Usc.M1*8, hfsc.Usc.D, hfsc.Usc.M2*8,
 	)
 }
 
